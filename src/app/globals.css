@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* Terminal-dark theme, always on — this is a shop-floor dashboard meant to be
+   glanced at on a workshop monitor, not a document that adapts to system light mode. */
+:root {
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-raised: #202020;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --gridline: #2c2c2a;
+  --border: rgba(255, 255, 255, 0.1);
+
+  --series-1: #3987e5; /* blue — primary trend measure */
+  --series-2: #d95926; /* orange — secondary measure */
+  --series-3: #199e70; /* aqua */
+
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #e66767;
+
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@theme inline {
+  --color-background: var(--page);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-mono);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+::selection {
+  background: var(--series-1);
+  color: #fff;
+}
