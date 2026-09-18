@@ -72,6 +72,15 @@ export interface ParsedRawMaterialPurchase {
   monthlyTotalMt?: number;
 }
 
+// A generic label/value reading for attachments with no fixed layout yet (e.g. dispatch
+// figures) — whatever a generic parser could pull out, grouped by source.
+export interface ParsedMiscFigure {
+  sourceLabel: string;
+  label: string;
+  value?: number;
+  unit?: string;
+}
+
 // What every parser produces — a partial slice of one day's report.
 // The upload flow merges slices from multiple sources before it's reviewed & committed.
 export interface ParsedDailyReportSlice {
@@ -79,11 +88,13 @@ export interface ParsedDailyReportSlice {
   notes?: string[];
   uptodateProductionMt?: number;
   uptodatePowerUnits?: number;
+  solarGenerationUnits?: number; // typed in by hand, no source document
   shiftMetrics?: Partial<Record<Shift, Partial<ParsedShiftMetrics>>>;
   gradeProduction?: ParsedGradeProduction[];
   chemicalUsage?: ParsedChemicalUsage[];
   wastage?: ParsedWastageItem[];
   rawMaterialPurchase?: ParsedRawMaterialPurchase[];
+  miscFigures?: ParsedMiscFigure[];
 }
 
 export interface ParseWarning {

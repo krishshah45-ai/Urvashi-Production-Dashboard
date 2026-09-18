@@ -104,6 +104,12 @@ export default async function DashboardPage() {
           unit="MT"
           sub="today"
         />
+        <StatTile
+          label="Solar generation"
+          value={latest.solarGenerationUnits != null ? latest.solarGenerationUnits.toFixed(0) : "—"}
+          unit="units"
+          sub="today, typed in"
+        />
       </section>
 
       <section className="border border-[var(--border)] bg-[var(--surface)] rounded-sm p-4">
@@ -145,6 +151,27 @@ export default async function DashboardPage() {
                     {((s.waterGidcKl ?? 0) + (s.waterBoilerKl ?? 0)).toFixed(0)}
                   </td>
                   <td className="py-1.5 pr-4 text-[var(--text-secondary)]">{s.downtimeReason ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {latestFull && latestFull.miscFigures.length > 0 && (
+        <section className="border border-[var(--border)] bg-[var(--surface)] rounded-sm p-4">
+          <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] mb-3">
+            Other figures — {latest.date}
+          </h2>
+          <table className="w-full text-sm">
+            <tbody>
+              {latestFull.miscFigures.map((f) => (
+                <tr key={f.id} className="border-t border-[var(--gridline)] first:border-t-0">
+                  <td className="py-1 pr-4 text-[var(--text-muted)] uppercase text-xs">{f.sourceLabel}</td>
+                  <td className="py-1 pr-4 text-[var(--text-secondary)]">{f.label}</td>
+                  <td className="py-1 pr-4 text-[var(--text-primary)]">
+                    {f.value ?? "—"} {f.unit ?? ""}
+                  </td>
                 </tr>
               ))}
             </tbody>

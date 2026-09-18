@@ -14,7 +14,6 @@
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "exceljs": "^4.4.0",
-    "mammoth": "^1.12.3",
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",

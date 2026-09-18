@@ -20,13 +20,6 @@ const SLOTS: SourceSlot[] = [
     hint: "the shift production/power/downtime workbook",
   },
   {
-    key: "whatsapp",
-    sourceType: "whatsapp_docx",
-    label: "WhatsApp Updates",
-    accept: ".docx",
-    hint: "the shift-wise WhatsApp text, saved as Word",
-  },
-  {
     key: "chemical",
     sourceType: "chemical_image",
     label: "Chemical Report (photo)",
@@ -47,6 +40,13 @@ const SLOTS: SourceSlot[] = [
     accept: "image/*",
     hint: "trim/broke/core waste sheet",
   },
+  {
+    key: "dispatch",
+    sourceType: "dispatch_attachment",
+    label: "Dispatch Figures (attachment)",
+    accept: "image/*,.xlsx,.xls,.csv,.txt",
+    hint: "yesterday's dispatch — photo, spreadsheet, or text; layout not fixed yet, so double-check the review draft",
+  },
 ];
 
 interface Conflict {
@@ -63,6 +63,8 @@ export default function UploadPage() {
   const router = useRouter();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [files, setFiles] = useState<Record<string, File | null>>({});
+  const [whatsappText, setWhatsappText] = useState("");
+  const [solarGeneration, setSolarGeneration] = useState("");
   const [parsing, setParsing] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,19 +73,42 @@ export default function UploadPage() {
   const [draftText, setDraftText] = useState<string | null>(null);
   const [committed, setCommitted] = useState(false);
 
+  const applySolar = (merged: Record<string, unknown>) => {
+    if (solarGeneration.trim() !== "") {
+      const n = Number(solarGeneration);
+      if (Number.isFinite(n)) merged.solarGenerationUnits = n;
+    }
+    return merged;
+  };
+
   const handleParse = async () => {
     setError(null);
     setCommitted(false);
     const selected = Object.entries(files).filter(([, f]) => f);
-    if (selected.length === 0) {
-      setError("Pick at least one file.");
+    const hasWhatsapp = whatsappText.trim() !== "";
+    const hasSolarOnly = solarGeneration.trim() !== "" && selected.length === 0 && !hasWhatsapp;
+
+    if (selected.length === 0 && !hasWhatsapp && solarGeneration.trim() === "") {
+      setError("Pick at least one file, paste the WhatsApp update, or enter solar generation.");
       return;
     }
+
+    if (hasSolarOnly) {
+      setConflicts([]);
+      setSourceWarnings([]);
+      setDraftText(JSON.stringify(applySolar({ date }), null, 2));
+      return;
+    }
+
     const form = new FormData();
     for (const [key, file] of selected) {
       const slot = SLOTS.find((s) => s.key === key)!;
       form.append("files", file!);
       form.append("sourceTypes", slot.sourceType);
+    }
+    if (hasWhatsapp) {
+      form.append("files", new File([whatsappText], "whatsapp-update.txt", { type: "text/plain" }));
+      form.append("sourceTypes", "whatsapp_text");
     }
 
     setParsing(true);
@@ -96,7 +121,7 @@ export default function UploadPage() {
       }
       setConflicts(data.conflicts ?? []);
       setSourceWarnings(data.sources ?? []);
-      setDraftText(JSON.stringify(data.merged, null, 2));
+      setDraftText(JSON.stringify(applySolar(data.merged), null, 2));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -172,6 +197,36 @@ export default function UploadPage() {
             </div>
           </label>
         ))}
+
+        <div className="border border-[var(--border)] bg-[var(--surface)] rounded-sm px-3 py-2 flex flex-col gap-2">
+          <div>
+            <div className="text-sm">WhatsApp Updates</div>
+            <div className="text-xs text-[var(--text-muted)]">paste the shift-wise WhatsApp text directly, no file needed</div>
+          </div>
+          <textarea
+            value={whatsappText}
+            onChange={(e) => setWhatsappText(e.target.value)}
+            placeholder="Paste the WhatsApp update text here…"
+            spellCheck={false}
+            className="w-full h-32 bg-[var(--page)] border border-[var(--border)] rounded-sm p-2 text-xs font-mono text-[var(--text-secondary)] focus:text-[var(--text-primary)] focus:border-[var(--series-1)] outline-none"
+          />
+        </div>
+
+        <div className="border border-[var(--border)] bg-[var(--surface)] rounded-sm px-3 py-2 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm">Solar Generation</div>
+            <div className="text-xs text-[var(--text-muted)]">just the total units generated — no attachment needed</div>
+          </div>
+          <div className="flex items-center gap-2 text-xs shrink-0">
+            <input
+              type="number"
+              value={solarGeneration}
+              onChange={(e) => setSolarGeneration(e.target.value)}
+              placeholder="units"
+              className="w-28 bg-[var(--page)] border border-[var(--border)] rounded-sm px-2 py-1 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--series-1)]"
+            />
+          </div>
+        </div>
       </div>
 
       {error && <p className="text-sm text-[var(--status-critical)]">{error}</p>}

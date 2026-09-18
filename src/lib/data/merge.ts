@@ -41,6 +41,7 @@ export function mergeSlices(
 
     if (slice.uptodateProductionMt != null) merged.uptodateProductionMt ??= slice.uptodateProductionMt;
     if (slice.uptodatePowerUnits != null) merged.uptodatePowerUnits ??= slice.uptodatePowerUnits;
+    if (slice.solarGenerationUnits != null) merged.solarGenerationUnits ??= slice.solarGenerationUnits;
 
     for (const shift of SHIFTS) {
       const incoming = slice.shiftMetrics?.[shift];
@@ -86,6 +87,9 @@ export function mergeSlices(
     }
     if (slice.rawMaterialPurchase?.length) {
       merged.rawMaterialPurchase = [...(merged.rawMaterialPurchase ?? []), ...slice.rawMaterialPurchase];
+    }
+    if (slice.miscFigures?.length) {
+      merged.miscFigures = [...(merged.miscFigures ?? []), ...slice.miscFigures];
     }
   }
 

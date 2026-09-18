@@ -4,6 +4,7 @@ import type {
   ParsedDailyReportSlice,
   ParsedChemicalUsage,
   ParsedGradeProduction,
+  ParsedMiscFigure,
   ParsedWastageItem,
   Shift,
 } from "@/lib/data/types";
@@ -387,6 +388,76 @@ export async function parseWastageReportImage(
   if (slice.wastage!.length === 0) {
     warnings.push({ message: "No wastage figures extracted." });
     delete slice.wastage;
+  }
+
+  return { slice, warnings };
+}
+
+// --- Generic figures (attachments with no fixed layout yet, e.g. dispatch) ---
+
+interface GenericFiguresExtraction {
+  date?: string;
+  figures: Array<{ label: string; value?: number; unit?: string }>;
+}
+
+/**
+ * Unlike the three schemas above, this has no known column layout to describe —
+ * it just asks for whatever "label: number" readings are visible on the photo.
+ * Meant as a starting point until a real sample lets us write a proper schema.
+ */
+export async function parseGenericFiguresImage(
+  imageBase64: string,
+  mediaType: ImageMediaType,
+  sourceLabel: string
+): Promise<ParseResult> {
+  const warnings: ParseResult["warnings"] = [];
+  const inputSchema: Anthropic.Tool.InputSchema = {
+    type: "object",
+    properties: {
+      date: { type: "string", description: "Report date exactly as printed, if visible" },
+      figures: {
+        type: "array",
+        description: "Every distinct labeled number visible on the photo (totals, per-item quantities, etc).",
+        items: {
+          type: "object",
+          properties: {
+            label: { type: "string", description: "The printed label/row name for this figure" },
+            value: { type: "number" },
+            unit: { type: "string", description: "e.g. MT, Kg, units — only if printed" },
+          },
+          required: ["label"],
+        },
+      },
+    },
+    required: ["figures"],
+  };
+
+  let result: GenericFiguresExtraction;
+  try {
+    result = await extractViaTool<GenericFiguresExtraction>({
+      imageBase64,
+      mediaType,
+      systemPrompt: `You are transcribing a ${sourceLabel} report photo into exact structured data. This sheet's exact layout isn't known in advance — record every labeled number you can clearly read. Never invent numbers — omit a figure if the photo doesn't clearly show it.`,
+      toolName: "record_figures",
+      toolDescription: `Records the labeled figures visible on the ${sourceLabel} photo.`,
+      inputSchema,
+    });
+  } catch (err) {
+    return { slice: {}, warnings: [{ message: `Vision extraction failed: ${(err as Error).message}` }] };
+  }
+
+  const slice: ParsedDailyReportSlice = {};
+  if (result.date) {
+    const parsed = parseMillDate(result.date);
+    if (parsed) slice.date = parsed;
+  }
+
+  slice.miscFigures = result.figures.map(
+    (f): ParsedMiscFigure => ({ sourceLabel, label: f.label, value: f.value, unit: f.unit })
+  );
+  if (slice.miscFigures.length === 0) {
+    warnings.push({ message: `No figures extracted from the ${sourceLabel} photo.` });
+    delete slice.miscFigures;
   }
 
   return { slice, warnings };

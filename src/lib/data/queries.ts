@@ -6,6 +6,7 @@ import {
   chemicalUsage,
   wastage,
   rawMaterialPurchase,
+  miscFigures,
 } from "@/db/schema";
 import { eq, gte, lte, desc, and } from "drizzle-orm";
 import { SHIFTS, type Shift } from "./types";
@@ -16,24 +17,27 @@ export interface DailyReportFull {
   notes: string | null;
   uptodateProductionMt: number | null;
   uptodatePowerUnits: number | null;
+  solarGenerationUnits: number | null;
   shifts: (typeof shiftMetrics.$inferSelect)[];
   grades: (typeof gradeProduction.$inferSelect)[];
   chemicals: (typeof chemicalUsage.$inferSelect)[];
   wastage: (typeof wastage.$inferSelect)[];
   rawMaterial: (typeof rawMaterialPurchase.$inferSelect)[];
+  miscFigures: (typeof miscFigures.$inferSelect)[];
 }
 
 export async function getReportByDate(date: string): Promise<DailyReportFull | null> {
   const report = await db.select().from(dailyReports).where(eq(dailyReports.date, date)).get();
   if (!report) return null;
-  const [shifts, grades, chemicals, wastageRows, rawMaterial] = await Promise.all([
+  const [shifts, grades, chemicals, wastageRows, rawMaterial, miscFigureRows] = await Promise.all([
     db.select().from(shiftMetrics).where(eq(shiftMetrics.reportDate, date)).all(),
     db.select().from(gradeProduction).where(eq(gradeProduction.reportDate, date)).all(),
     db.select().from(chemicalUsage).where(eq(chemicalUsage.reportDate, date)).all(),
     db.select().from(wastage).where(eq(wastage.reportDate, date)).all(),
     db.select().from(rawMaterialPurchase).where(eq(rawMaterialPurchase.reportDate, date)).all(),
+    db.select().from(miscFigures).where(eq(miscFigures.reportDate, date)).all(),
   ]);
-  return { ...report, shifts, grades, chemicals, wastage: wastageRows, rawMaterial };
+  return { ...report, shifts, grades, chemicals, wastage: wastageRows, rawMaterial, miscFigures: miscFigureRows };
 }
 
 export async function listRecentReports(limit = 60) {

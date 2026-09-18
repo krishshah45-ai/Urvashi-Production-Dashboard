@@ -11,6 +11,7 @@ export const dailyReports = sqliteTable("daily_reports", {
   notes: text("notes"), // freeform notes pulled from the MIS report (Note 1, Note 2, ...)
   uptodateProductionMt: real("uptodate_production_mt"),
   uptodatePowerUnits: real("uptodate_power_units"),
+  solarGenerationUnits: real("solar_generation_units"), // typed in by hand — no source document for this yet
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -148,10 +149,11 @@ export const sourceUploads = sqliteTable("source_uploads", {
   sourceType: text("source_type", {
     enum: [
       "mis_xlsx",
-      "whatsapp_docx",
+      "whatsapp_text",
       "chemical_image",
       "shift_chemical_image",
       "wastage_image",
+      "dispatch_attachment",
     ],
   }).notNull(),
   filename: text("filename").notNull(),
@@ -166,4 +168,20 @@ export const sourceUploads = sqliteTable("source_uploads", {
     .notNull()
     .default(sql`(unixepoch())`),
   confirmedAt: integer("confirmed_at", { mode: "timestamp" }),
+});
+
+// A flexible label/value bucket for attachments with no fixed layout yet (e.g. dispatch
+// figures) — extracted best-effort by a generic parser rather than a schema-specific one.
+export const miscFigures = sqliteTable("misc_figures", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reportDate: text("report_date")
+    .notNull()
+    .references(() => dailyReports.date, { onDelete: "cascade" }),
+  sourceLabel: text("source_label").notNull(), // e.g. "dispatch"
+  label: text("label").notNull(),
+  value: real("value"),
+  unit: text("unit"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(unixepoch())`),
 });

@@ -6,6 +6,7 @@ import {
   chemicalUsage,
   wastage,
   rawMaterialPurchase,
+  miscFigures,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { ParsedDailyReportSlice } from "./types";
@@ -23,6 +24,7 @@ export async function commitReport(date: string, slice: ParsedDailyReportSlice):
         notes: slice.notes?.join("\n") ?? existing.notes,
         uptodateProductionMt: slice.uptodateProductionMt ?? existing.uptodateProductionMt,
         uptodatePowerUnits: slice.uptodatePowerUnits ?? existing.uptodatePowerUnits,
+        solarGenerationUnits: slice.solarGenerationUnits ?? existing.solarGenerationUnits,
         updatedAt: new Date(),
       })
       .where(eq(dailyReports.date, date))
@@ -36,6 +38,7 @@ export async function commitReport(date: string, slice: ParsedDailyReportSlice):
         notes: slice.notes?.join("\n"),
         uptodateProductionMt: slice.uptodateProductionMt,
         uptodatePowerUnits: slice.uptodatePowerUnits,
+        solarGenerationUnits: slice.solarGenerationUnits,
       })
       .run();
   }
@@ -46,6 +49,7 @@ export async function commitReport(date: string, slice: ParsedDailyReportSlice):
   await db.delete(chemicalUsage).where(eq(chemicalUsage.reportDate, date)).run();
   await db.delete(wastage).where(eq(wastage.reportDate, date)).run();
   await db.delete(rawMaterialPurchase).where(eq(rawMaterialPurchase.reportDate, date)).run();
+  await db.delete(miscFigures).where(eq(miscFigures.reportDate, date)).run();
 
   for (const shift of SHIFTS) {
     const m = slice.shiftMetrics?.[shift];
@@ -137,6 +141,15 @@ export async function commitReport(date: string, slice: ParsedDailyReportSlice):
           dailyQtyMt: r.dailyQtyMt,
           monthlyTotalMt: r.monthlyTotalMt,
         })
+        .run();
+    }
+  }
+
+  if (slice.miscFigures?.length) {
+    for (const f of slice.miscFigures) {
+      await db
+        .insert(miscFigures)
+        .values({ reportDate: date, sourceLabel: f.sourceLabel, label: f.label, value: f.value, unit: f.unit })
         .run();
     }
   }

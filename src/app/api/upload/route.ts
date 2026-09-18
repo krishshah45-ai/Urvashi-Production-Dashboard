@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseMisReport } from "@/lib/parsers/misReport";
-import { parseWhatsappUpdate } from "@/lib/parsers/whatsappUpdate";
+import { parseWhatsappText } from "@/lib/parsers/whatsappUpdate";
 import {
   parseChemicalReportImage,
   parseShiftChemicalReportImage,
   parseWastageReportImage,
+  parseGenericFiguresImage,
   type ImageMediaType,
 } from "@/lib/parsers/imageExtraction";
+import { parseGenericSpreadsheet, parseGenericText } from "@/lib/parsers/genericAttachment";
 import { mergeSlices } from "@/lib/data/merge";
 import type { ParseResult } from "@/lib/data/types";
 
@@ -14,12 +16,38 @@ export const runtime = "nodejs";
 
 const SOURCE_TYPES = [
   "mis_xlsx",
-  "whatsapp_docx",
+  "whatsapp_text",
   "chemical_image",
   "shift_chemical_image",
   "wastage_image",
+  "dispatch_attachment",
 ] as const;
 type SourceType = (typeof SOURCE_TYPES)[number];
+
+const SPREADSHEET_EXT = /\.(xlsx|xls)$/i;
+
+/** Routes a "no known layout yet" attachment (currently just dispatch) by its content type. */
+async function parseDispatchAttachment(file: File, buffer: Buffer): Promise<ParseResult> {
+  const sourceLabel = "dispatch";
+  if (file.type.startsWith("image/")) {
+    const mediaType = (file.type || "image/jpeg") as ImageMediaType;
+    return parseGenericFiguresImage(buffer.toString("base64"), mediaType, sourceLabel);
+  }
+  if (file.type.includes("spreadsheet") || file.type === "application/vnd.ms-excel" || SPREADSHEET_EXT.test(file.name)) {
+    return parseGenericSpreadsheet(buffer, sourceLabel);
+  }
+  if (file.type.startsWith("text/") || file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
+    return parseGenericText(buffer.toString("utf-8"), sourceLabel);
+  }
+  return {
+    slice: {},
+    warnings: [
+      {
+        message: `Don't know how to read "${file.name}" (${file.type || "unknown type"}) yet — add dispatch figures manually in the review draft.`,
+      },
+    ],
+  };
+}
 
 /**
  * Accepts one or more files for a given day, each tagged with which report it
@@ -55,8 +83,8 @@ export async function POST(req: NextRequest) {
         case "mis_xlsx":
           result = await parseMisReport(buffer);
           break;
-        case "whatsapp_docx":
-          result = await parseWhatsappUpdate(buffer);
+        case "whatsapp_text":
+          result = parseWhatsappText(buffer.toString("utf-8"));
           break;
         case "chemical_image":
         case "shift_chemical_image":
@@ -69,6 +97,9 @@ export async function POST(req: NextRequest) {
           else result = await parseWastageReportImage(base64, mediaType);
           break;
         }
+        case "dispatch_attachment":
+          result = await parseDispatchAttachment(file, buffer);
+          break;
       }
     } catch (err) {
       result = { slice: {}, warnings: [{ message: `Parser error: ${(err as Error).message}` }] };

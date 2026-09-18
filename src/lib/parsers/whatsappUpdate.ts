@@ -1,27 +1,26 @@
-import mammoth from "mammoth";
 import type { ParseResult, ParsedDailyReportSlice, Shift } from "@/lib/data/types";
 import { parseMillDate, toNum, hhmmToDecimalHours } from "./util";
 
 const SHIFTS: Shift[] = ["A", "B", "C"];
 
 /**
- * Parses the free-text WhatsApp shift updates. Unlike the MIS sheet, this has
- * no fixed cell grid — it's copy-pasted text that drifts slightly day to day —
- * so this is regex-over-lines rather than positional. It cross-reports several
- * numbers already in the MIS sheet (production, department units) — those are
- * kept here so the upload/merge step can flag discrepancies — plus a few
- * numbers found nowhere else: the Urvashi/UPPM GEB (grid) split, equipment
- * running hours, per-shift water, and raw-material (waste paper) purchases.
+ * Parses the free-text WhatsApp shift updates, pasted directly from the chat
+ * (no file, no conversion step). Unlike the MIS sheet, this has no fixed cell
+ * grid — it's copy-pasted text that drifts slightly day to day — so this is
+ * regex-over-lines rather than positional. It cross-reports several numbers
+ * already in the MIS sheet (production, department units) — those are kept
+ * here so the upload/merge step can flag discrepancies — plus a few numbers
+ * found nowhere else: the Urvashi/UPPM GEB (grid) split, equipment running
+ * hours, per-shift water, and raw-material (waste paper) purchases.
  *
- * Document shape, confirmed against the 16.09.2026 sample:
+ * Text shape, confirmed against the 16.09.2026 sample:
  *   1) / 2) / 3)  -- one block per shift (A/B/C), each a "*Shift- X" line
  *                    followed by ~20 "Label - value" lines
  *   4)            -- three "DATE-... SHIFT- X" sub-blocks with Gidc water / Boiler
  *   5)            -- one paragraph with waste-paper purchase per group company
  */
-export async function parseWhatsappUpdate(buffer: Buffer): Promise<ParseResult> {
+export function parseWhatsappText(rawText: string): ParseResult {
   const warnings: ParseResult["warnings"] = [];
-  const { value: rawText } = await mammoth.extractRawText({ buffer });
   const lines = rawText
     .split("\n")
     .map((l) => l.trim())
